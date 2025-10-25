@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat:*)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Read(//tmp/**)",
+      "Bash(cat:*)",
+      "Bash(xargs kill:*)",
+      "Bash(kill:*)",
+      "Bash(nginx:*)",
+      "Bash(sudo systemctl stop:*)",
+      "Bash(sudo nginx:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
