@@ -50,6 +50,26 @@ export const useWebRTC = () => {
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
               { urls: 'stun:stun1.l.google.com:19302' },
+              {
+                urls: 'turn:a.relay.metered.ca:80',
+                username: '6ae6cd4a1e94f7bb4b5bdb93',
+                credential: 'TWVDrjOXnqt0exHV',
+              },
+              {
+                urls: 'turn:a.relay.metered.ca:80?transport=tcp',
+                username: '6ae6cd4a1e94f7bb4b5bdb93',
+                credential: 'TWVDrjOXnqt0exHV',
+              },
+              {
+                urls: 'turn:a.relay.metered.ca:443',
+                username: '6ae6cd4a1e94f7bb4b5bdb93',
+                credential: 'TWVDrjOXnqt0exHV',
+              },
+              {
+                urls: 'turn:a.relay.metered.ca:443?transport=tcp',
+                username: '6ae6cd4a1e94f7bb4b5bdb93',
+                credential: 'TWVDrjOXnqt0exHV',
+              },
             ],
           },
         });
