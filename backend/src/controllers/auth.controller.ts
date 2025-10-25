@@ -25,8 +25,8 @@ export const register = async (req: Request, res: Response) => {
     await user.save();
 
     // Generate tokens
-    const accessToken = generateAccessToken({ userId: user._id.toString(), isGuest: false });
-    const refreshToken = generateRefreshToken({ userId: user._id.toString(), isGuest: false });
+    const accessToken = generateAccessToken({ userId: String(user._id), isGuest: false });
+    const refreshToken = generateRefreshToken({ userId: String(user._id), isGuest: false });
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -70,8 +70,8 @@ export const login = async (req: Request, res: Response) => {
     await user.save();
 
     // Generate tokens
-    const accessToken = generateAccessToken({ userId: user._id.toString(), isGuest: false });
-    const refreshToken = generateRefreshToken({ userId: user._id.toString(), isGuest: false });
+    const accessToken = generateAccessToken({ userId: String(user._id), isGuest: false });
+    const refreshToken = generateRefreshToken({ userId: String(user._id), isGuest: false });
 
     res.json({
       message: 'Login successful',
@@ -103,8 +103,8 @@ export const guestLogin = async (req: Request, res: Response) => {
     await guestUser.save();
 
     // Generate tokens
-    const accessToken = generateAccessToken({ userId: guestUser._id.toString(), isGuest: true });
-    const refreshToken = generateRefreshToken({ userId: guestUser._id.toString(), isGuest: true });
+    const accessToken = generateAccessToken({ userId: String(guestUser._id), isGuest: true });
+    const refreshToken = generateRefreshToken({ userId: String(guestUser._id), isGuest: true });
 
     res.status(201).json({
       message: 'Guest session created',

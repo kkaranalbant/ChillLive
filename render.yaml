@@ -1,0 +1,37 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: chilllive-backend
+    runtime: node
+    region: frankfurt  # EU region (Germany)
+    plan: free
+    branch: main
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # MongoDB Atlas connection string - ADD THIS IN RENDER DASHBOARD
+      - key: MONGODB_URI
+        sync: false
+      # JWT Secrets - ADD THESE IN RENDER DASHBOARD
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRY
+        value: 15m
+      - key: JWT_REFRESH_EXPIRY
+        value: 7d
+      # CORS - Will be updated after Vercel deployment
+      - key: CORS_ORIGIN
+        sync: false
+      # Rate Limiting
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 100
+    healthCheckPath: /api/health
