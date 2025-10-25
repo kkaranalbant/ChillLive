@@ -38,7 +38,7 @@ class SocketService {
     // Re-attach all listeners
     this.listeners.forEach((callbacks, event) => {
       callbacks.forEach((callback) => {
-        this.socket?.on(event, callback);
+        this.socket?.on(event, callback as any);
       });
     });
   }

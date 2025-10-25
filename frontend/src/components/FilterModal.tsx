@@ -71,9 +71,9 @@ export default function FilterModal({ isOpen, onClose, onApply }: FilterModalPro
             </label>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { value: 'all', label: 'Hepsi' },
-                { value: 'male', label: 'Erkek' },
-                { value: 'female', label: 'Kadın' },
+                { value: 'all' as const, label: 'Hepsi' },
+                { value: 'male' as const, label: 'Erkek' },
+                { value: 'female' as const, label: 'Kadın' },
               ].map((option) => (
                 <button
                   key={option.value}

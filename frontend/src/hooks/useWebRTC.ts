@@ -56,11 +56,7 @@ export const useWebRTC = () => {
 
         peer.on('signal', (data) => {
           console.log('Sending signal:', data.type);
-          socketService.sendSignal(matchData.roomId, {
-            type: data.type as 'offer' | 'answer' | 'ice-candidate',
-            sdp: data.sdp,
-            candidate: data.candidate,
-          });
+          socketService.sendSignal(matchData.roomId, data as any);
         });
 
         peer.on('stream', (remoteStream) => {
@@ -81,7 +77,7 @@ export const useWebRTC = () => {
         peerRef.current = peer;
 
         // Setup signal listener
-        const handleSignal = ({ signalData }: { from: string; signalData: SignalData }) => {
+        const handleSignal = ({ signalData }: { from: string; signalData: any }) => {
           console.log('Received signal:', signalData.type);
           try {
             if (peer && !peer.destroyed) {
