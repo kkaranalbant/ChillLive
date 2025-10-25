@@ -15,9 +15,15 @@ dotenv.config();
 
 const app: Application = express();
 const httpServer = createServer(app);
+
+// Parse CORS origins (comma-separated string to array)
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+  : ['http://localhost:3000'];
+
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: corsOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -26,7 +32,7 @@ const io = new Server(httpServer, {
 // Middleware
 app.set('trust proxy', 1); // Trust first proxy (Nginx)
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: corsOrigins,
   credentials: true,
 }));
 app.use(express.json());
