@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import html2canvas from 'html2canvas';
 import { reportAPI } from '@/lib/api';
 import { useChatStore } from '@/stores/chatStore';
 
@@ -15,6 +16,43 @@ export default function ReportModal({ isOpen, onClose }: ReportModalProps) {
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [screenshotData, setScreenshotData] = useState<string>('');
+  const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
+
+  // Capture screenshot when modal opens
+  useEffect(() => {
+    if (isOpen && !screenshotData) {
+      captureScreenshot();
+    }
+  }, [isOpen]);
+
+  const captureScreenshot = async () => {
+    try {
+      setIsCapturingScreenshot(true);
+      console.log('[SCREENSHOT] Capturing...');
+
+      // Wait a moment for modal to render
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Capture the entire document body
+      const canvas = await html2canvas(document.body, {
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        scale: 0.5, // Reduce quality to save bandwidth
+      });
+
+      // Convert to base64
+      const base64Image = canvas.toDataURL('image/jpeg', 0.6); // 60% quality
+      setScreenshotData(base64Image);
+      console.log('[SCREENSHOT] Captured successfully, size:', Math.round(base64Image.length / 1024), 'KB');
+    } catch (error) {
+      console.error('[SCREENSHOT] Failed to capture:', error);
+      // Continue without screenshot
+    } finally {
+      setIsCapturingScreenshot(false);
+    }
+  };
 
   const reasons = [
     { value: 'inappropriate', label: 'Uygunsuz içerik' },
@@ -36,6 +74,8 @@ export default function ReportModal({ isOpen, onClose }: ReportModalProps) {
         reportedUserId: matchData.partnerId,
         reason: reason as any,
         description,
+        screenshotData,
+        roomId: matchData.roomId,
       });
 
       setSuccess(true);
@@ -44,6 +84,7 @@ export default function ReportModal({ isOpen, onClose }: ReportModalProps) {
         setSuccess(false);
         setReason('');
         setDescription('');
+        setScreenshotData('');
       }, 2000);
     } catch (error) {
       console.error('Failed to submit report:', error);

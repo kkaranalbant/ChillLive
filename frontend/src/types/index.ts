@@ -83,4 +83,6 @@ export interface ReportData {
   reportedUserId: string;
   reason: 'inappropriate' | 'spam' | 'harassment' | 'underage' | 'other';
   description?: string;
+  screenshotData?: string;
+  roomId?: string;
 }

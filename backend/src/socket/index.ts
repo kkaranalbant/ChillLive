@@ -4,9 +4,10 @@ import { User } from '../models/User.model';
 import { matchmakingService } from '../services/matchmaking.service';
 import { UserSocketData, SignalData } from '../types/socket.types';
 import { getLocationFromIP } from '../utils/geolocation.utils';
+import { sessionService } from '../services/session.service';
 
-// Store connected users
-const connectedUsers = new Map<string, Socket>();
+// Store connected users with their IP addresses
+const connectedUsers = new Map<string, { socket: Socket; ip?: string }>();
 
 export const initializeSocketHandlers = (io: Server) => {
   io.use(async (socket, next) => {
@@ -40,15 +41,15 @@ export const initializeSocketHandlers = (io: Server) => {
 
     console.log(`User connected: ${userId} (${socket.id})`);
 
-    // Store socket connection
-    connectedUsers.set(userId, socket);
-
     // Get client IP address
     const clientIP = socket.handshake.headers['x-forwarded-for']?.toString().split(',')[0].trim()
       || socket.handshake.headers['x-real-ip']?.toString()
       || socket.handshake.address;
 
     console.log(`User ${userId} IP: ${clientIP}`);
+
+    // Store socket connection with IP
+    connectedUsers.set(userId, { socket, ip: clientIP });
 
     // Detect location from IP and update user
     if (clientIP) {
@@ -93,10 +94,10 @@ export const initializeSocketHandlers = (io: Server) => {
           socket.join(room.roomId);
           console.log(`[MATCH] User ${userId} (socket ${socket.id}) joined room ${room.roomId}`);
 
-          const partnerSocket = connectedUsers.get(match.userId);
-          if (partnerSocket) {
-            partnerSocket.join(room.roomId);
-            console.log(`[MATCH] Partner ${match.userId} (socket ${partnerSocket.id}) joined room ${room.roomId}`);
+          const partnerData = connectedUsers.get(match.userId);
+          if (partnerData) {
+            partnerData.socket.join(room.roomId);
+            console.log(`[MATCH] Partner ${match.userId} (socket ${partnerData.socket.id}) joined room ${room.roomId}`);
           } else {
             console.error(`[MATCH] ERROR: Partner socket not found for user ${match.userId}`);
           }
@@ -105,6 +106,11 @@ export const initializeSocketHandlers = (io: Server) => {
           const roomSockets = io.sockets.adapter.rooms.get(room.roomId);
           console.log(`[MATCH] Room ${room.roomId} now has ${roomSockets?.size || 0} members:`,
             roomSockets ? Array.from(roomSockets) : []);
+
+          // Create session for logging
+          const userIP = connectedUsers.get(userId)?.ip;
+          const partnerIP = partnerData?.ip;
+          await sessionService.createSession(room.roomId, userId, match.userId, userIP, partnerIP);
 
           // Notify both users
           socket.emit('match-found', {
@@ -117,7 +123,7 @@ export const initializeSocketHandlers = (io: Server) => {
             },
           });
 
-          partnerSocket?.emit('match-found', {
+          partnerData?.socket.emit('match-found', {
             roomId: room.roomId,
             partnerId: userId,
             partnerProfile: {
@@ -166,10 +172,13 @@ export const initializeSocketHandlers = (io: Server) => {
     });
 
     // Handle text messages
-    socket.on('chat-message', ({ roomId, message }: { roomId: string; message: string }) => {
+    socket.on('chat-message', async ({ roomId, message }: { roomId: string; message: string }) => {
       const room = matchmakingService.getRoomByUserId(userId);
 
       if (room && room.roomId === roomId) {
+        // Add message to session log
+        await sessionService.addMessage(roomId, userId, message);
+
         socket.to(roomId).emit('chat-message', {
           from: userId,
           message,
@@ -183,6 +192,9 @@ export const initializeSocketHandlers = (io: Server) => {
       const room = matchmakingService.getRoomByUserId(userId);
 
       if (room) {
+        // End session
+        await sessionService.endSession(room.roomId, 'skipped');
+
         // Notify partner
         socket.to(room.roomId).emit('partner-skipped');
 
@@ -196,7 +208,7 @@ export const initializeSocketHandlers = (io: Server) => {
 
         // Leave room
         socket.leave(room.roomId);
-        connectedUsers.get(partnerId)?.leave(room.roomId);
+        connectedUsers.get(partnerId)?.socket.leave(room.roomId);
       }
     });
 
@@ -205,6 +217,9 @@ export const initializeSocketHandlers = (io: Server) => {
       const room = matchmakingService.getRoomByUserId(userId);
 
       if (room) {
+        // End session
+        await sessionService.endSession(room.roomId, 'completed');
+
         // Notify partner
         socket.to(room.roomId).emit('chat-ended');
 
@@ -222,18 +237,21 @@ export const initializeSocketHandlers = (io: Server) => {
     socket.on('disconnect', async () => {
       console.log(`User disconnected: ${userId}`);
 
+      // Notify partner if in room
+      const room = matchmakingService.getRoomByUserId(userId);
+      if (room) {
+        // End session
+        await sessionService.endSession(room.roomId, 'disconnected');
+
+        socket.to(room.roomId).emit('partner-disconnected');
+      }
+
       // Clean up
       matchmakingService.endUserSession(userId);
       connectedUsers.delete(userId);
 
       // Update status
       await User.findByIdAndUpdate(userId, { status: 'offline' });
-
-      // Notify partner if in room
-      const room = matchmakingService.getRoomByUserId(userId);
-      if (room) {
-        socket.to(room.roomId).emit('partner-disconnected');
-      }
     });
   });
 
