@@ -22,7 +22,30 @@ export const useWebRTC = () => {
     let peer: SimplePeer.Instance | null = null;
     let stream: MediaStream | null = null;
     let mounted = true;
-    let handleSignal: ((data: { from: string; signalData: any }) => void) | null = null;
+    let signalQueue: any[] = [];
+    let peerReady = false;
+
+    // Setup signal listener IMMEDIATELY, before everything else
+    const handleSignal = ({ signalData }: { from: string; signalData: any }) => {
+      console.log('Received signal:', signalData.type);
+
+      if (peerReady && peer && !peer.destroyed) {
+        // Peer is ready, process signal immediately
+        try {
+          peer.signal(signalData);
+        } catch (error) {
+          console.error('Error processing signal:', error);
+        }
+      } else {
+        // Peer not ready yet, queue the signal
+        console.log('Peer not ready, queueing signal');
+        signalQueue.push(signalData);
+      }
+    };
+
+    // Add listener FIRST, before any async operations
+    socketService.onSignal(handleSignal);
+    console.log('Signal listener added for room:', matchData.roomId);
 
     const initializeWebRTC = async () => {
       try {
@@ -104,20 +127,20 @@ export const useWebRTC = () => {
         });
 
         peerRef.current = peer;
+        peerReady = true;
 
-        // Setup signal listener
-        handleSignal = ({ signalData }: { from: string; signalData: any }) => {
-          console.log('Received signal:', signalData.type);
-          try {
-            if (peer && !peer.destroyed) {
-              peer.signal(signalData);
+        // Process any queued signals
+        if (signalQueue.length > 0) {
+          console.log(`Processing ${signalQueue.length} queued signals`);
+          signalQueue.forEach((signalData) => {
+            try {
+              peer!.signal(signalData);
+            } catch (error) {
+              console.error('Error processing queued signal:', error);
             }
-          } catch (error) {
-            console.error('Error processing signal:', error);
-          }
-        };
-
-        socketService.onSignal(handleSignal);
+          });
+          signalQueue = [];
+        }
       } catch (error: any) {
         console.error('Failed to initialize WebRTC:', error);
         if (mounted) {
@@ -144,9 +167,8 @@ export const useWebRTC = () => {
       mounted = false;
 
       // Remove signal listener
-      if (handleSignal) {
-        socketService.off('signal', handleSignal);
-      }
+      socketService.off('signal', handleSignal);
+      console.log('Signal listener removed');
 
       // Destroy peer connection
       if (peer && !peer.destroyed) {
@@ -157,6 +179,9 @@ export const useWebRTC = () => {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
+
+      // Clear signal queue
+      signalQueue = [];
     };
   }, [matchData, user?._id]);
 
