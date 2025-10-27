@@ -8,7 +8,7 @@ export interface UserSocketData {
       min: number;
       max: number;
     };
-    locationFilter?: string;
+    nearbyOnly?: boolean;
   };
   profile: {
     gender?: 'male' | 'female' | 'other';
@@ -16,6 +16,10 @@ export interface UserSocketData {
     location?: {
       country?: string;
       city?: string;
+      coordinates?: {
+        latitude: number;
+        longitude: number;
+      };
     };
   };
   status: 'waiting' | 'matched' | 'in-chat';

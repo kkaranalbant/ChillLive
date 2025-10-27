@@ -12,6 +12,10 @@ export interface IUser extends Document {
     location?: {
       country?: string;
       city?: string;
+      coordinates?: {
+        latitude: number;
+        longitude: number;
+      };
     };
     bio?: string;
   };
@@ -21,8 +25,9 @@ export interface IUser extends Document {
       min: number;
       max: number;
     };
-    locationFilter?: string;
+    nearbyOnly?: boolean;
   };
+  lastIP?: string;
   status: 'online' | 'offline' | 'in-chat';
   reportCount: number;
   isBanned: boolean;
@@ -65,6 +70,10 @@ const userSchema = new Schema<IUser>(
       location: {
         country: String,
         city: String,
+        coordinates: {
+          latitude: Number,
+          longitude: Number,
+        },
       },
       bio: {
         type: String,
@@ -87,8 +96,12 @@ const userSchema = new Schema<IUser>(
           default: 99,
         },
       },
-      locationFilter: String,
+      nearbyOnly: {
+        type: Boolean,
+        default: false,
+      },
     },
+    lastIP: String,
     status: {
       type: String,
       enum: ['online', 'offline', 'in-chat'],

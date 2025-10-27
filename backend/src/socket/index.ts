@@ -3,6 +3,7 @@ import { verifyAccessToken } from '../utils/jwt.utils';
 import { User } from '../models/User.model';
 import { matchmakingService } from '../services/matchmaking.service';
 import { UserSocketData, SignalData } from '../types/socket.types';
+import { getLocationFromIP } from '../utils/geolocation.utils';
 
 // Store connected users
 const connectedUsers = new Map<string, Socket>();
@@ -33,7 +34,7 @@ export const initializeSocketHandlers = (io: Server) => {
     }
   });
 
-  io.on('connection', (socket: Socket) => {
+  io.on('connection', async (socket: Socket) => {
     const userId = (socket as any).userId;
     const user = (socket as any).user;
 
@@ -42,8 +43,31 @@ export const initializeSocketHandlers = (io: Server) => {
     // Store socket connection
     connectedUsers.set(userId, socket);
 
-    // Update user status
-    User.findByIdAndUpdate(userId, { status: 'online' }).exec();
+    // Get client IP address
+    const clientIP = socket.handshake.headers['x-forwarded-for']?.toString().split(',')[0].trim()
+      || socket.handshake.headers['x-real-ip']?.toString()
+      || socket.handshake.address;
+
+    console.log(`User ${userId} IP: ${clientIP}`);
+
+    // Detect location from IP and update user
+    if (clientIP) {
+      const location = getLocationFromIP(clientIP);
+
+      if (location) {
+        console.log(`User ${userId} location:`, location);
+
+        await User.findByIdAndUpdate(userId, {
+          status: 'online',
+          lastIP: clientIP,
+          'profile.location': location,
+        }).exec();
+      } else {
+        await User.findByIdAndUpdate(userId, { status: 'online' }).exec();
+      }
+    } else {
+      await User.findByIdAndUpdate(userId, { status: 'online' }).exec();
+    }
 
     // Handle find match
     socket.on('find-match', async (preferences) => {

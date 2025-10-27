@@ -9,6 +9,10 @@ export interface User {
     location?: {
       country?: string;
       city?: string;
+      coordinates?: {
+        latitude: number;
+        longitude: number;
+      };
     };
     bio?: string;
   };
@@ -18,7 +22,7 @@ export interface User {
       min: number;
       max: number;
     };
-    locationFilter?: string;
+    nearbyOnly?: boolean;
   };
   status: 'online' | 'offline' | 'in-chat';
   reportCount: number;

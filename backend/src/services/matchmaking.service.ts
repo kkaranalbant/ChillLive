@@ -1,4 +1,5 @@
 import { UserSocketData, ChatRoom } from '../types/socket.types';
+import { areUsersNearby } from '../utils/geolocation.utils';
 
 class MatchmakingService {
   private waitingUsers: Map<string, UserSocketData> = new Map();
@@ -62,15 +63,13 @@ class MatchmakingService {
       }
     }
 
-    // Check location filter (basic implementation)
-    if (user1.preferences.locationFilter && user2.profile.location?.country) {
-      if (user2.profile.location.country !== user1.preferences.locationFilter) {
-        return false;
-      }
-    }
+    // Check nearby location filter
+    // If either user wants nearby matches only, check if they're close
+    if (user1.preferences.nearbyOnly || user2.preferences.nearbyOnly) {
+      const nearby = areUsersNearby(user1.profile.location, user2.profile.location);
 
-    if (user2.preferences.locationFilter && user1.profile.location?.country) {
-      if (user1.profile.location.country !== user2.preferences.locationFilter) {
+      if (!nearby) {
+        console.log(`Users ${user1.userId} and ${user2.userId} not nearby, skipping match`);
         return false;
       }
     }

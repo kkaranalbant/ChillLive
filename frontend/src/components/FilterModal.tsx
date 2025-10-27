@@ -17,6 +17,7 @@ export default function FilterModal({ isOpen, onClose, onApply }: FilterModalPro
     genderFilter: user?.preferences?.genderFilter || 'all',
     minAge: user?.preferences?.ageRange?.min || 18,
     maxAge: user?.preferences?.ageRange?.max || 99,
+    nearbyOnly: user?.preferences?.nearbyOnly || false,
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -31,6 +32,7 @@ export default function FilterModal({ isOpen, onClose, onApply }: FilterModalPro
           min: filters.minAge,
           max: filters.maxAge,
         },
+        nearbyOnly: filters.nearbyOnly,
       };
 
       // Save to backend
@@ -119,6 +121,31 @@ export default function FilterModal({ isOpen, onClose, onApply }: FilterModalPro
                 />
               </div>
             </div>
+          </div>
+
+          {/* Location Filter */}
+          <div>
+            <label className="flex items-center space-x-3 cursor-pointer group">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={filters.nearbyOnly}
+                  onChange={(e) => setFilters({ ...filters, nearbyOnly: e.target.checked })}
+                  className="sr-only"
+                />
+                <div className={`w-11 h-6 rounded-full transition-colors ${
+                  filters.nearbyOnly ? 'bg-purple-600' : 'bg-gray-300'
+                }`}>
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                    filters.nearbyOnly ? 'translate-x-5' : 'translate-x-0'
+                  }`}></div>
+                </div>
+              </div>
+              <div>
+                <div className="text-sm font-medium text-gray-900">Yakın Konum</div>
+                <div className="text-xs text-gray-500">Sadece yakınımdaki kişilerle eşleş</div>
+              </div>
+            </label>
           </div>
 
           {/* Buttons */}

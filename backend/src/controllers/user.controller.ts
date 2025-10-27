@@ -51,7 +51,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
 
 export const updatePreferences = async (req: AuthRequest, res: Response) => {
   try {
-    const { genderFilter, ageRange, locationFilter } = req.body;
+    const { genderFilter, ageRange, nearbyOnly } = req.body;
 
     const user = await User.findById(req.userId);
 
@@ -61,7 +61,7 @@ export const updatePreferences = async (req: AuthRequest, res: Response) => {
 
     if (genderFilter) user.preferences.genderFilter = genderFilter;
     if (ageRange) user.preferences.ageRange = ageRange;
-    if (locationFilter) user.preferences.locationFilter = locationFilter;
+    if (typeof nearbyOnly === 'boolean') user.preferences.nearbyOnly = nearbyOnly;
 
     await user.save();
 
