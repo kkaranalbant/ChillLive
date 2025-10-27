@@ -21,6 +21,8 @@ export const useWebRTC = () => {
 
     let peer: SimplePeer.Instance | null = null;
     let stream: MediaStream | null = null;
+    let mounted = true;
+    let handleSignal: ((data: { from: string; signalData: any }) => void) | null = null;
 
     const initializeWebRTC = async () => {
       try {
@@ -32,6 +34,11 @@ export const useWebRTC = () => {
           video: true,
           audio: true,
         });
+
+        if (!mounted) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
 
         setLocalStream(stream);
 
@@ -49,14 +56,8 @@ export const useWebRTC = () => {
           config: {
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:stun1.l.google.com:19302' },
               {
                 urls: 'turn:a.relay.metered.ca:80',
-                username: '6ae6cd4a1e94f7bb4b5bdb93',
-                credential: 'TWVDrjOXnqt0exHV',
-              },
-              {
-                urls: 'turn:a.relay.metered.ca:80?transport=tcp',
                 username: '6ae6cd4a1e94f7bb4b5bdb93',
                 credential: 'TWVDrjOXnqt0exHV',
               },
@@ -65,14 +66,14 @@ export const useWebRTC = () => {
                 username: '6ae6cd4a1e94f7bb4b5bdb93',
                 credential: 'TWVDrjOXnqt0exHV',
               },
-              {
-                urls: 'turn:a.relay.metered.ca:443?transport=tcp',
-                username: '6ae6cd4a1e94f7bb4b5bdb93',
-                credential: 'TWVDrjOXnqt0exHV',
-              },
             ],
           },
         });
+
+        if (!mounted) {
+          peer.destroy();
+          return;
+        }
 
         peer.on('signal', (data) => {
           console.log('Sending signal:', data.type);
@@ -81,23 +82,31 @@ export const useWebRTC = () => {
 
         peer.on('stream', (remoteStream) => {
           console.log('Received remote stream');
-          setRemoteStream(remoteStream);
-          setIsConnecting(false);
+          if (mounted) {
+            setRemoteStream(remoteStream);
+            setIsConnecting(false);
+          }
         });
 
         peer.on('error', (err) => {
           console.error('Peer connection error:', err);
-          setIsConnecting(false);
+          if (mounted) {
+            setIsConnecting(false);
+          }
         });
 
         peer.on('close', () => {
           console.log('Peer connection closed');
         });
 
+        peer.on('connect', () => {
+          console.log('Peer connected successfully!');
+        });
+
         peerRef.current = peer;
 
         // Setup signal listener
-        const handleSignal = ({ signalData }: { from: string; signalData: any }) => {
+        handleSignal = ({ signalData }: { from: string; signalData: any }) => {
           console.log('Received signal:', signalData.type);
           try {
             if (peer && !peer.destroyed) {
@@ -109,48 +118,45 @@ export const useWebRTC = () => {
         };
 
         socketService.onSignal(handleSignal);
-
-        // Cleanup function
-        return () => {
-          console.log('Cleaning up WebRTC connection');
-
-          // Remove signal listener
-          socketService.off('signal', handleSignal);
-
-          // Destroy peer connection
-          if (peer) {
-            peer.destroy();
-          }
-
-          // Stop media stream
-          if (stream) {
-            stream.getTracks().forEach((track) => track.stop());
-          }
-        };
       } catch (error: any) {
         console.error('Failed to initialize WebRTC:', error);
-        setIsConnecting(false);
+        if (mounted) {
+          setIsConnecting(false);
 
-        // Set user-friendly error messages
-        if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-          setError('Kamera veya mikrofon bulunamadı. Lütfen cihazlarınızı kontrol edin.');
-        } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-          setError('Kamera/mikrofon izni reddedildi. Lütfen tarayıcı ayarlarından izin verin.');
-        } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
-          setError('Kamera/mikrofon başka bir uygulama tarafından kullanılıyor olabilir.');
-        } else {
-          setError('Kamera/mikrofona erişim hatası: ' + error.message);
+          // Set user-friendly error messages
+          if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+            setError('Kamera veya mikrofon bulunamadı. Lütfen cihazlarınızı kontrol edin.');
+          } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+            setError('Kamera/mikrofon izni reddedildi. Lütfen tarayıcı ayarlarından izin verin.');
+          } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+            setError('Kamera/mikrofon başka bir uygulama tarafından kullanılıyor olabilir.');
+          } else {
+            setError('Kamera/mikrofona erişim hatası: ' + error.message);
+          }
         }
       }
     };
 
-    const cleanupPromise = initializeWebRTC();
+    initializeWebRTC();
 
     return () => {
-      cleanupPromise.then((cleanup) => {
-        if (cleanup) cleanup();
-      });
-      cleanup();
+      console.log('Cleaning up WebRTC connection');
+      mounted = false;
+
+      // Remove signal listener
+      if (handleSignal) {
+        socketService.off('signal', handleSignal);
+      }
+
+      // Destroy peer connection
+      if (peer && !peer.destroyed) {
+        peer.destroy();
+      }
+
+      // Stop media stream
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
     };
   }, [matchData, user?._id]);
 
