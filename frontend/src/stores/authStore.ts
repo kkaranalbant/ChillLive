@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { User } from '@/types';
-import { authAPI } from '@/lib/api';
+import { authAPI, userAPI } from '@/lib/api';
 import { socketService } from '@/lib/socket';
 
 interface AuthState {
@@ -18,7 +18,7 @@ interface AuthState {
   register: (email: string, password: string, username: string, profile?: any) => Promise<void>;
   guestLogin: (username?: string, profile?: any) => Promise<void>;
   logout: () => Promise<void>;
-  loadUserFromStorage: () => void;
+  loadUserFromStorage: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -117,14 +117,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  loadUserFromStorage: () => {
+  loadUserFromStorage: async () => {
     const accessToken = localStorage.getItem('accessToken');
     const refreshToken = localStorage.getItem('refreshToken');
 
     if (accessToken && refreshToken) {
-      set({ accessToken, refreshToken });
-      // Connect to socket
-      socketService.connect(accessToken);
+      try {
+        set({ accessToken, refreshToken, isLoading: true });
+
+        // Fetch user profile
+        const { data } = await userAPI.getProfile();
+        set({ user: data.user, isAuthenticated: true });
+
+        // Connect to socket
+        socketService.connect(accessToken);
+      } catch (error) {
+        console.error('Failed to load user from storage:', error);
+        // Clear invalid tokens
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        set({ accessToken: null, refreshToken: null });
+      } finally {
+        set({ isLoading: false });
+      }
     }
   },
 }));
