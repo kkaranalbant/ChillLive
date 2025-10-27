@@ -63,11 +63,24 @@ export const initializeSocketHandlers = (io: Server) => {
         if (match) {
           // Match found
           const room = matchmakingService.createRoom(userId, match.userId);
+          console.log(`[MATCH] Created room ${room.roomId} for ${userId} and ${match.userId}`);
 
           // Join both users to the room
           socket.join(room.roomId);
+          console.log(`[MATCH] User ${userId} (socket ${socket.id}) joined room ${room.roomId}`);
+
           const partnerSocket = connectedUsers.get(match.userId);
-          partnerSocket?.join(room.roomId);
+          if (partnerSocket) {
+            partnerSocket.join(room.roomId);
+            console.log(`[MATCH] Partner ${match.userId} (socket ${partnerSocket.id}) joined room ${room.roomId}`);
+          } else {
+            console.error(`[MATCH] ERROR: Partner socket not found for user ${match.userId}`);
+          }
+
+          // Check room state
+          const roomSockets = io.sockets.adapter.rooms.get(room.roomId);
+          console.log(`[MATCH] Room ${room.roomId} now has ${roomSockets?.size || 0} members:`,
+            roomSockets ? Array.from(roomSockets) : []);
 
           // Notify both users
           socket.emit('match-found', {
@@ -108,12 +121,24 @@ export const initializeSocketHandlers = (io: Server) => {
 
     // Handle WebRTC signaling
     socket.on('signal', ({ roomId, signalData }: { roomId: string; signalData: SignalData }) => {
-      console.log(`Signal from ${userId} in room ${roomId}: ${signalData.type}`);
+      console.log(`[SIGNAL] Received from ${userId} in room ${roomId}: ${signalData.type}`);
+
+      // Check if socket is in the room
+      const rooms = Array.from(socket.rooms);
+      console.log(`[SIGNAL] Socket ${socket.id} rooms:`, rooms);
+
+      // Check room members
+      const roomSockets = io.sockets.adapter.rooms.get(roomId);
+      console.log(`[SIGNAL] Room ${roomId} has ${roomSockets?.size || 0} members:`,
+        roomSockets ? Array.from(roomSockets) : []);
+
       // Forward signal to partner in the room
-      socket.to(roomId).emit('signal', {
+      const sentCount = socket.to(roomId).emit('signal', {
         from: userId,
         signalData,
       });
+
+      console.log(`[SIGNAL] Forwarded to room ${roomId}, broadcast sent`);
     });
 
     // Handle text messages
